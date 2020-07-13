@@ -146,14 +146,9 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
 
     var addCoin = function(user, val) {
         users.findOne({"user":user},function(err, res)
-        {console.log({"user":user})
+        {
             if(!(res==null ||res==undefined)){
-                console.log('Old coin:', res.coins);
-                users.update({"user":res.user}, {$set:{coins:parseInt(res.coins)+parseInt(val)}},function(err, res){
-                    console.log('New coin:', res.coins);            
-                    console.log('New coin:', res.coins);            
-                    console.log('New coin:', res.coins); 
-                    console.log(res)           
+                users.update({"user":res.user}, {$set:{coins:parseInt(res.coins)+parseInt(val)}},function(err, res){        
                     return{status:'updated', message: 'sucesso'}
                 });
             }
@@ -164,15 +159,11 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
     var removeCoin = function(user, val) {
         users.findOne({"user":user},function(err, res){
             if(!(res==null ||res==undefined)){
-                users.update({"user":res.user}, {$set:{coins:parseInt(res.coins) - parseInt(val)}},function(err, res){
+                users.update({"user":res.user}, {$set:{coins:parseInt(res.coins) - parseInt(val)}},function(err, res){            
                     console.log('New coin:', res.coins);            
-                console.log('New coin:', res.coins);            
-                    console.log('New coin:', res.coins);            
-                return{status:'updated', message: 'sucesso'}
                 });
             }
-            return{status:'failed', message: 'falhou'}
-        });       
+        });        
     };
 
     io = socketio.listen(http);
@@ -212,16 +203,12 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                     }
                     // if the room is full, prevent another player from joining the room
                     else if (room.players.length == 2){
-                        roomName = uniqid();
-
-                        playerState =  { 'players': [ {'id': socket.id,'ready': false, 'canFire': false, 'takenHits': 0, 'ships' : ships } ], 'ships': ships, 'id': socket.id, 'room': roomName };
-
-                        // create the room and insert the first player (host)
-                        rooms.insert({'room' : roomName, 'players' : [ {'id': socket.id, 'ready': false, 'canFire': false, 'takenHits': 0, 'ships' : ships } ]  }, function(err, result) {
-                                            
-                        });
-                        updateRoomsList(roomName)
-                    }
+                        }
+                        // if the room is full, prevent another player from joining the room
+                        else if (room.players.length == 2){
+                            return;
+                        }
+                    
                 } else { // room does not exist
 
 
