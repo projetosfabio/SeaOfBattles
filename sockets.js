@@ -132,17 +132,17 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
     
     
 
-    console.log('Inicia o banco')
-    var players=[];
-    var p1={user:"Player2",password:"12345",nickname:"P2",coins:3500,email:"p2@gmail.com",skins:["florestal","inferno"],energy:10}
-    var p2={user:"Player1",password:"12345",nickname:"P1",coins:1000,email:"p1@gmail.com",skins:[],energy:10}
-    players.push(p1,p2);
+//     console.log('Inicia o banco')
+//     var players=[];
+//     var p1={user:"Player2",password:"12345",nickname:"P2",coins:3500,email:"p2@gmail.com",skins:["florestal","inferno"],energy:10}
+//     var p2={user:"Player1",password:"12345",nickname:"P1",coins:1000,email:"p1@gmail.com",skins:[],energy:10}
+//     players.push(p1,p2);
     
-   users.insert(players, function(err,docs){
-        docs.forEach(function(d){
-            console.log('Saved user:', d.user);
-        });
-    });
+//    users.insert(players, function(err,docs){
+//         docs.forEach(function(d){
+//             console.log('Saved user:', d.user);
+//         });
+//     });
 
     var addCoin = function(user, val) {
         users.findOne({"user":user},function(err, res)
@@ -151,7 +151,7 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                 console.log('Old coin:', res.coins);
                 users.update({"user":res.user}, {$set:{coins:parseInt(res.coins)+parseInt(val)}},function(err, res){
                     console.log('New coin:', res.coins);            
-                console.log('New coin:', res.coins);            
+                    console.log('New coin:', res.coins);            
                     console.log('New coin:', res.coins); 
                     console.log(res)           
                     return{status:'updated', message: 'sucesso'}
@@ -164,7 +164,7 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
     var removeCoin = function(user, val) {
         users.findOne({"user":user},function(err, res){
             if(!(res==null ||res==undefined)){
-                users.update({"user":res.user}, {$set:{coins:res.coins - val}},function(err, res){
+                users.update({"user":res.user}, {$set:{coins:parseInt(res.coins) - parseInt(val)}},function(err, res){
                     console.log('New coin:', res.coins);            
                 console.log('New coin:', res.coins);            
                     console.log('New coin:', res.coins);            
@@ -422,7 +422,7 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
             users.findOne({'user':obj.user},function(err, res){
                 if(!(res==null ||res==undefined)){
                     users.update({'user':obj.user}, {$set: { nickname: obj.nickname, email: obj.email }}, function(err, res){
-                        socket.emit('updateUser', {nickname:res.nickname, email:res.nickname})
+                        socket.emit('updateUser', {nickname:obj.nickname, email:obj.nickname})
                     })
                 }
             })
@@ -433,8 +433,10 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                 if(!(res==null ||res==undefined)){
                     const newSkins=[...res.skins, ...obj.skin];
                     users.update({'user':obj.user}, {$set:{skins:newSkins}}, function(err, res){
-                        payload= removeCoin(obj.coins);
-                        socket.emit('purchase', {coins:res.coins, skins:res.skins, ...payload});
+                    })
+                    payload= removeCoin(obj.coins);
+                    users.findOne({'user':obj.user},function(err, res){
+                        socket.emit('purchase', {coins: res.coins, skins:res.skins, ...payload});  
                     })
                 }else{
                  socket.emit('purchase', {coins:0, skins:[],status:'failed', message: 'falhou' });
@@ -445,7 +447,9 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
         socket.on('addCredit', function(obj){
             console.log(obj)
             payload = addCoin(obj.user, obj.coins);
-            socket.emit('addCredit',{coins:obj.coins,...payload});
+            users.findOne({'user':obj.user},function(err, res){
+                socket.emit('addCredit',{coins:res.coins,...payload}); 
+          })
         });
 
         socket.on('updateEnergy', function(obj) {
@@ -454,8 +458,8 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                     socket.emit('updateEnergy', {coinsEnabled: false, energy :0});
                 }else{
                     users.update({'user': obj.user}, {$set: {energy: res.energy-1}}, function(err, res) {
-                        socket.emit('updateEnergy', {coinsEnabled: true, energy: 0});
                     })
+                    socket.emit('updateEnergy', {coinsEnabled: true, energy: res.energy-1});
                 }
             })
         });
