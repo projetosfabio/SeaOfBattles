@@ -4,6 +4,8 @@ socket.emit('init', window.location.pathname.substring(1, window.location.pathna
 
 socket.on('init', function(obj) {
 
+    //console.log(obj.players.length);
+    console.log(obj.players);
     vm.ships = obj.ships;
     vm.room = window.location + obj.room;
     vm.playerState = obj;
