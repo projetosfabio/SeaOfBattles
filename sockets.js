@@ -6,14 +6,24 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
     listOfRooms.insert({listOfRooms:'listOfRooms',list:[]})
     var updateRoomsList= function(roomName){
         listOfRooms.findOne({'listOfRooms':'listOfRooms'},function(err,res){
-            listOfRooms.update({'listOfRooms':'listOfRooms'},{$set:{list:[...res.list,roomName]}})
+            listOfRooms.update({'listOfRooms':'listOfRooms'},{$set:{list:[...res.list,{roonName:roomName,inProgress:false}]}})
+        })
+    }
+    var removeRoomsList= function(roomName){
+        listOfRooms.findOne({'listOfRooms':'listOfRooms'},function(err,res){
+            list=res.list
+            room=list.find(room => room.roomName===roomName)
+            listOfRooms.update({'listOfRooms':'listOfRooms'},{$set:{list:[...res.list.pop(room)]}})
         })
     }
     var setInProgress=function(roomName){
         listOfRooms.findOne({'listOfRooms':'listOfRooms'},function(err,res){
-            room=res.list.find(room=>room.roomName===roomName)
-            room.inProgress=true
-            listOfRooms.update({'listOfRooms':'listOfRooms'},{$set:{list:[...res.list,room]}})
+            list=res.list
+            room=list.find(room => room.roomName===roomName)
+            list.pop(room)
+            room = {roomName:roomName,inProgress:true}
+            list.push(room)
+            listOfRooms.update({'listOfRooms':'listOfRooms'},{$set:{list:list}})
         })
     }
     var ships = [
@@ -180,7 +190,9 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
         });
 
         socket.on('init', function(roomName) {
-
+            listOfRooms.findOne({'listOfRooms':'listOfRooms'},function(err,res){
+                console.log(roomName,'init',res)
+            })
             // find the room that the client sent to us
             rooms.findOne({room: roomName}, function(err, room) {
 
@@ -198,17 +210,15 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                         playerState.players.push({'id': socket.id, 'canFire': false, 'ready': false, 'takenHits': 0, 'ships' : ships });
 
                         // add the current player to players
-                        rooms.update({room: roomName}, {$addToSet : { players: {'id': socket.id, 'canFire': false, 'ready': false, 'takenHits': 0, 'ships' : ships } } }, {}, function(obj, nch) {});
-                        setInProgress(roomName);
+                        rooms.update({room: roomName}, {$addToSet : { players: {'id': socket.id, 'canFire': false, 'ready': false, 'takenHits': 0, 'ships' : ships } } }, {}, function(obj, nch) {
+                            setInProgress(roomName);
+                        });
+                        
                     }
                     // if the room is full, prevent another player from joining the room
                     else if (room.players.length == 2){
-                        }
-                        // if the room is full, prevent another player from joining the room
-                        else if (room.players.length == 2){
-                            return;
-                        }
-                    
+                        return;
+                    }
                 } else { // room does not exist
 
 
@@ -217,10 +227,9 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
 
                     // create the room and insert the first player (host)
                     rooms.insert({'room' : roomName, 'players' : [ {'id': socket.id, 'ready': false, 'canFire': false, 'takenHits': 0, 'ships' : ships } ]  }, function(err, result) {
-                                        
+                        updateRoomsList(roomName)
                     });
-                    updateRoomsList(roomName)
-                }
+                    }
 
                 socket.join(roomName);
                 socket.broadcast.to(roomName).emit('playerJoined');
@@ -376,6 +385,7 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
                         rooms.remove({"players.id": socket.id}, function(err, nr) {
 
                         });
+                        removeRoomsList
                     } else {
 
                         rooms.update({"players.id": socket.id}, {$pull: {"players" : {id: socket.id}}}, function(err, nchanged) {
@@ -432,7 +442,6 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
         });
 
         socket.on('addCredit', function(obj){
-            console.log(obj)
             payload = addCoin(obj.user, obj.coins);
             users.findOne({'user':obj.user},function(err, res){
                 socket.emit('addCredit',{coins:res.coins,...payload}); 
@@ -455,9 +464,9 @@ module.exports.listen = function(http, rooms, users, listOfRooms) {
             listOfRooms.findOne({'listOfRooms':'listOfRooms'},function(err,res){
                 if(!(res.list==null || res.list==undefined)){
                     socket.emit('findRooms',{list:res.list})
-                }
+                }else{
                 socket.emit('findRooms',{list:[{roomName:'',inProgress:false}]})
-            })
+            }})
         })
 
         socket.on('signIn', function(obj){
